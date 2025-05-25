@@ -36,10 +36,9 @@ type HyUDPConn interface {
 }
 
 type HandshakeInfo struct {
-	UDPEnabled  bool
-	Tx          uint64 // 0 if using BBR
-	ServerAddr  net.Addr
-	ECHAccepted bool
+	UDPEnabled bool
+	Tx         uint64 // 0 if using BBR
+	ServerAddr net.Addr
 }
 
 func NewClient(config *Config) (Client, *HandshakeInfo, error) {
@@ -174,10 +173,9 @@ func (c *clientImpl) connect() (*HandshakeInfo, error) {
 		c.udpSM = newUDPSessionManager(&udpIOImpl{Conn: conn})
 	}
 	return &HandshakeInfo{
-		UDPEnabled:  authResp.UDPEnabled,
-		Tx:          actualTx,
-		ServerAddr:  c.config.ServerAddr,
-		ECHAccepted: conn.ConnectionState().TLS.ECHAccepted,
+		UDPEnabled: authResp.UDPEnabled,
+		Tx:         actualTx,
+		ServerAddr: c.config.ServerAddr,
 	}, nil
 }
 

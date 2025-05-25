@@ -95,13 +95,3 @@ func (u PortUnion) Ports() []uint16 {
 	}
 	return ports
 }
-
-// Contains returns true if the PortUnion contains the given port.
-func (u PortUnion) Contains(port uint16) bool {
-	for _, r := range u {
-		if port >= r.Start && port <= r.End {
-			return true
-		}
-	}
-	return false
-}

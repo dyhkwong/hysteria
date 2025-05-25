@@ -50,7 +50,7 @@ func (r *RingBuffer[T]) PushBack(t T) {
 // callers might need to check if there are elements in the buffer first.
 func (r *RingBuffer[T]) PopFront() T {
 	if r.Empty() {
-		panic("github.com/quic-go/quic-go/internal/utils/ringbuffer: pop from an empty queue")
+		panic("github.com/quic-go/quic-go/international/utils/ringbuffer: pop from an empty queue")
 	}
 	r.full = false
 	t := r.ring[r.headPos]
@@ -68,7 +68,7 @@ func (r *RingBuffer[T]) PopFront() T {
 // and check if the index larger than buffer length.
 func (r *RingBuffer[T]) Offset(index int) *T {
 	if r.Empty() || index >= r.Len() {
-		panic("github.com/quic-go/quic-go/internal/utils/ringbuffer: offset from invalid index")
+		panic("github.com/quic-go/quic-go/international/utils/ringbuffer: offset from invalid index")
 	}
 	offset := (r.headPos + index) % len(r.ring)
 	return &r.ring[offset]
@@ -79,7 +79,7 @@ func (r *RingBuffer[T]) Offset(index int) *T {
 // callers might need to check if there are elements in the buffer first.
 func (r *RingBuffer[T]) Front() *T {
 	if r.Empty() {
-		panic("github.com/quic-go/quic-go/internal/utils/ringbuffer: front from an empty queue")
+		panic("github.com/quic-go/quic-go/international/utils/ringbuffer: front from an empty queue")
 	}
 	return &r.ring[r.headPos]
 }
@@ -89,7 +89,7 @@ func (r *RingBuffer[T]) Front() *T {
 // callers might need to check if there are elements in the buffer first.
 func (r *RingBuffer[T]) Back() *T {
 	if r.Empty() {
-		panic("github.com/quic-go/quic-go/internal/utils/ringbuffer: back from an empty queue")
+		panic("github.com/quic-go/quic-go/international/utils/ringbuffer: back from an empty queue")
 	}
 	return r.Offset(r.Len() - 1)
 }

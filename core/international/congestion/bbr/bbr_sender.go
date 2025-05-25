@@ -12,7 +12,7 @@ import (
 	"github.com/apernet/quic-go/congestion"
 	"github.com/apernet/quic-go/monotime"
 
-	"github.com/apernet/hysteria/core/v2/internal/congestion/common"
+	"github.com/apernet/hysteria/core/v2/international/congestion/common"
 )
 
 // BbrSender implements BBR congestion control algorithm.  BBR aims to estimate

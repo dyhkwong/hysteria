@@ -10,9 +10,9 @@ import (
 	"time"
 
 	coreErrs "github.com/apernet/hysteria/core/v2/errors"
-	"github.com/apernet/hysteria/core/v2/internal/congestion"
-	"github.com/apernet/hysteria/core/v2/internal/protocol"
-	"github.com/apernet/hysteria/core/v2/internal/utils"
+	"github.com/apernet/hysteria/core/v2/international/congestion"
+	"github.com/apernet/hysteria/core/v2/international/protocol"
+	"github.com/apernet/hysteria/core/v2/international/utils"
 
 	"github.com/apernet/quic-go"
 	"github.com/apernet/quic-go/http3"
@@ -27,6 +27,8 @@ type Client interface {
 	TCP(addr string) (net.Conn, error)
 	UDP() (HyUDPConn, error)
 	Close() error
+	OpenStream() (*utils.QStream, error)
+	GetQuicConn() *quic.Conn
 }
 
 type HyUDPConn interface {
@@ -36,9 +38,9 @@ type HyUDPConn interface {
 }
 
 type HandshakeInfo struct {
-	UDPEnabled  bool
-	Tx          uint64 // 0 if using BBR
-	ServerAddr  net.Addr
+	UDPEnabled bool
+	Tx         uint64 // 0 if using BBR
+	ServerAddr net.Addr
 }
 
 func NewClient(config *Config) (Client, *HandshakeInfo, error) {
@@ -173,14 +175,14 @@ func (c *clientImpl) connect() (*HandshakeInfo, error) {
 		c.udpSM = newUDPSessionManager(&udpIOImpl{Conn: conn})
 	}
 	return &HandshakeInfo{
-		UDPEnabled:  authResp.UDPEnabled,
-		Tx:          actualTx,
-		ServerAddr:  c.config.ServerAddr,
+		UDPEnabled: authResp.UDPEnabled,
+		Tx:         actualTx,
+		ServerAddr: c.config.ServerAddr,
 	}, nil
 }
 
 // openStream wraps the stream with QStream, which handles Close() properly
-func (c *clientImpl) openStream() (*utils.QStream, error) {
+func (c *clientImpl) OpenStream() (*utils.QStream, error) {
 	stream, err := c.conn.OpenStream()
 	if err != nil {
 		return nil, err
@@ -188,8 +190,12 @@ func (c *clientImpl) openStream() (*utils.QStream, error) {
 	return &utils.QStream{Stream: stream}, nil
 }
 
+func (c *clientImpl) GetQuicConn() *quic.Conn {
+	return c.conn
+}
+
 func (c *clientImpl) TCP(addr string) (net.Conn, error) {
-	stream, err := c.openStream()
+	stream, err := c.OpenStream()
 	if err != nil {
 		return nil, wrapIfConnectionClosed(err)
 	}

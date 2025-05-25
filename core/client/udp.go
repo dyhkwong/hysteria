@@ -9,8 +9,8 @@ import (
 	"github.com/apernet/quic-go"
 
 	coreErrs "github.com/apernet/hysteria/core/v2/errors"
-	"github.com/apernet/hysteria/core/v2/internal/frag"
-	"github.com/apernet/hysteria/core/v2/internal/protocol"
+	"github.com/apernet/hysteria/core/v2/international/frag"
+	"github.com/apernet/hysteria/core/v2/international/protocol"
 )
 
 const (

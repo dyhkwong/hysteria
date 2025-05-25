@@ -11,6 +11,7 @@ import (
 
 	coreErrs "github.com/apernet/hysteria/core/v2/errors"
 	"github.com/apernet/hysteria/core/v2/international/congestion"
+	"github.com/apernet/hysteria/core/v2/international/pmtud"
 	"github.com/apernet/hysteria/core/v2/international/protocol"
 	"github.com/apernet/hysteria/core/v2/international/utils"
 
@@ -38,9 +39,9 @@ type HyUDPConn interface {
 }
 
 type HandshakeInfo struct {
-	UDPEnabled  bool
-	Tx          uint64 // 0 if using BBR
-	ServerAddr  net.Addr
+	UDPEnabled bool
+	Tx         uint64 // 0 if using BBR
+	ServerAddr net.Addr
 }
 
 func NewClient(config *Config) (Client, *HandshakeInfo, error) {
@@ -72,31 +73,49 @@ func (c *clientImpl) connect() (*HandshakeInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Convert config to TLS config & QUIC config
-	tlsConfig := &tls.Config{
-		ServerName:                     c.config.TLSConfig.ServerName,
-		InsecureSkipVerify:             c.config.TLSConfig.InsecureSkipVerify,
-		VerifyPeerCertificate:          c.config.TLSConfig.VerifyPeerCertificate,
-		RootCAs:                        c.config.TLSConfig.RootCAs,
-		GetClientCertificate:           c.config.TLSConfig.GetClientCertificate,
-		EncryptedClientHelloConfigList: c.config.TLSConfig.ECHConfigList,
+	var quicConfig *quic.Config
+	if c.config.QUICConfig != nil {
+		quicConfig = c.config.QUICConfig.Clone()
+	} else {
+		quicConfig = new(quic.Config)
 	}
-	quicConfig := &quic.Config{
-		InitialStreamReceiveWindow:     c.config.QUICConfig.InitialStreamReceiveWindow,
-		MaxStreamReceiveWindow:         c.config.QUICConfig.MaxStreamReceiveWindow,
-		InitialConnectionReceiveWindow: c.config.QUICConfig.InitialConnectionReceiveWindow,
-		MaxConnectionReceiveWindow:     c.config.QUICConfig.MaxConnectionReceiveWindow,
-		MaxIdleTimeout:                 c.config.QUICConfig.MaxIdleTimeout,
-		KeepAlivePeriod:                c.config.QUICConfig.KeepAlivePeriod,
-		DisablePathMTUDiscovery:        c.config.QUICConfig.DisablePathMTUDiscovery,
-		EnableDatagrams:                true,
-		MaxDatagramFrameSize:           protocol.MaxDatagramFrameSize,
-		OmitMaxDatagramFrameSize:       true,
-		DisablePathManager:             true,
-		ChromeParrot:                   !c.config.QUICConfig.DisableChromeParrot,
+	if quicConfig.InitialStreamReceiveWindow == 0 {
+		quicConfig.InitialStreamReceiveWindow = defaultStreamReceiveWindow
+	} else if quicConfig.InitialStreamReceiveWindow < 16384 {
+		return nil, coreErrs.ConfigError{Field: "QUICConfig.InitialStreamReceiveWindow", Reason: "must be at least 16384"}
 	}
+	if quicConfig.MaxStreamReceiveWindow == 0 {
+		quicConfig.MaxStreamReceiveWindow = defaultStreamReceiveWindow
+	} else if quicConfig.MaxStreamReceiveWindow < 16384 {
+		return nil, coreErrs.ConfigError{Field: "QUICConfig.MaxStreamReceiveWindow", Reason: "must be at least 16384"}
+	}
+	if quicConfig.InitialConnectionReceiveWindow == 0 {
+		quicConfig.InitialConnectionReceiveWindow = defaultConnReceiveWindow
+	} else if quicConfig.InitialConnectionReceiveWindow < 16384 {
+		return nil, coreErrs.ConfigError{Field: "QUICConfig.InitialConnectionReceiveWindow", Reason: "must be at least 16384"}
+	}
+	if quicConfig.MaxConnectionReceiveWindow == 0 {
+		quicConfig.MaxConnectionReceiveWindow = defaultConnReceiveWindow
+	} else if quicConfig.MaxConnectionReceiveWindow < 16384 {
+		return nil, coreErrs.ConfigError{Field: "QUICConfig.MaxConnectionReceiveWindow", Reason: "must be at least 16384"}
+	}
+	if quicConfig.MaxIdleTimeout == 0 {
+		quicConfig.MaxIdleTimeout = defaultMaxIdleTimeout
+	} else if quicConfig.MaxIdleTimeout < 4*time.Second || quicConfig.MaxIdleTimeout > 120*time.Second {
+		return nil, coreErrs.ConfigError{Field: "QUICConfig.MaxIdleTimeout", Reason: "must be between 4s and 120s"}
+	}
+	if quicConfig.KeepAlivePeriod == 0 {
+		quicConfig.KeepAlivePeriod = defaultKeepAlivePeriod
+	} else if quicConfig.KeepAlivePeriod < 2*time.Second || quicConfig.KeepAlivePeriod > 60*time.Second {
+		return nil, coreErrs.ConfigError{Field: "QUICConfig.KeepAlivePeriod", Reason: "must be between 2s and 60s"}
+	}
+	quicConfig.DisablePathMTUDiscovery = quicConfig.DisablePathMTUDiscovery || pmtud.DisablePathMTUDiscovery
+	quicConfig.EnableDatagrams = true
+	quicConfig.MaxDatagramFrameSize = protocol.MaxDatagramFrameSize
+	quicConfig.OmitMaxDatagramFrameSize = true
+	quicConfig.DisablePathManager = true
 	tr := &quic.Transport{Conn: pktConn}
-	if !c.config.QUICConfig.DisableChromeParrot {
+	if quicConfig.ChromeParrot {
 		// Chrome uses a zero-length source connection ID. This has to be set on the
 		// Transport, since it fixes the length at which incoming packets' connection
 		// IDs are parsed; leaving it default yields 4-byte IDs, visible on the wire.
@@ -105,7 +124,7 @@ func (c *clientImpl) connect() (*HandshakeInfo, error) {
 	// Prepare RoundTripper
 	var conn *quic.Conn
 	rt := &http3.Transport{
-		TLSClientConfig: tlsConfig,
+		TLSClientConfig: c.config.TLSConfig,
 		QUICConfig:      quicConfig,
 		Dial: func(ctx context.Context, _ string, tlsCfg *tls.Config, cfg *quic.Config) (*quic.Conn, error) {
 			qc, err := tr.DialEarly(ctx, c.config.ServerAddr, tlsCfg, cfg)
@@ -175,9 +194,9 @@ func (c *clientImpl) connect() (*HandshakeInfo, error) {
 		c.udpSM = newUDPSessionManager(&udpIOImpl{Conn: conn})
 	}
 	return &HandshakeInfo{
-		UDPEnabled:  authResp.UDPEnabled,
-		Tx:          actualTx,
-		ServerAddr:  c.config.ServerAddr,
+		UDPEnabled: authResp.UDPEnabled,
+		Tx:         actualTx,
+		ServerAddr: c.config.ServerAddr,
 	}, nil
 }
 

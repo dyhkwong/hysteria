@@ -74,10 +74,10 @@ func WriteTCPRequest(w io.Writer, addr string) error {
 		int(quicvarint.Len(uint64(addrLen))) + addrLen +
 		int(quicvarint.Len(uint64(paddingLen))) + paddingLen
 	buf := make([]byte, sz)
-	i := varintPut(buf, FrameTypeTCPRequest)
-	i += varintPut(buf[i:], uint64(addrLen))
+	i := VarintPut(buf, FrameTypeTCPRequest)
+	i += VarintPut(buf[i:], uint64(addrLen))
 	i += copy(buf[i:], addr)
-	i += varintPut(buf[i:], uint64(paddingLen))
+	i += VarintPut(buf[i:], uint64(paddingLen))
 	copy(buf[i:], padding)
 	_, err := w.Write(buf)
 	return err
@@ -140,9 +140,9 @@ func WriteTCPResponse(w io.Writer, ok bool, msg string) error {
 	} else {
 		buf[0] = 1
 	}
-	i := varintPut(buf[1:], uint64(msgLen))
+	i := VarintPut(buf[1:], uint64(msgLen))
 	i += copy(buf[1+i:], msg)
-	i += varintPut(buf[1+i:], uint64(paddingLen))
+	i += VarintPut(buf[1+i:], uint64(paddingLen))
 	copy(buf[1+i:], padding)
 	_, err := w.Write(buf)
 	return err
@@ -184,7 +184,7 @@ func (m *UDPMessage) Serialize(buf []byte) int {
 	binary.BigEndian.PutUint16(buf[4:], m.PacketID)
 	buf[6] = m.FragID
 	buf[7] = m.FragCount
-	i := varintPut(buf[8:], uint64(len(m.Addr)))
+	i := VarintPut(buf[8:], uint64(len(m.Addr)))
 	i += copy(buf[8+i:], m.Addr)
 	i += copy(buf[8+i:], m.Data)
 	return 8 + i
@@ -222,9 +222,9 @@ func ParseUDPMessage(msg []byte) (*UDPMessage, error) {
 	return m, nil
 }
 
-// varintPut is like quicvarint.Append, but instead of appending to a slice,
+// VarintPut is like quicvarint.Append, but instead of appending to a slice,
 // it writes to a fixed-size buffer. Returns the number of bytes written.
-func varintPut(b []byte, i uint64) int {
+func VarintPut(b []byte, i uint64) int {
 	if i <= maxVarInt1 {
 		b[0] = uint8(i)
 		return 1

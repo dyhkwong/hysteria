@@ -8,8 +8,11 @@ import (
 	"time"
 
 	"github.com/apernet/hysteria/core/v2/errors"
-	"github.com/apernet/hysteria/core/v2/internal/congestion"
-	"github.com/apernet/hysteria/core/v2/internal/pmtud"
+	"github.com/apernet/hysteria/core/v2/international/congestion"
+	"github.com/apernet/hysteria/core/v2/international/pmtud"
+	"github.com/apernet/hysteria/core/v2/international/utils"
+	"github.com/apernet/quic-go"
+	"github.com/apernet/quic-go/http3"
 )
 
 const (
@@ -32,6 +35,9 @@ type Config struct {
 	UDPIdleTimeout        time.Duration
 	Authenticator         Authenticator
 	MasqHandler           http.Handler
+
+	StreamHijacker     func(http3.FrameType, *quic.Conn, *utils.QStream, error) (hijacked bool, err error)
+	UdpSessionHijacker func(*UdpSessionEntry, string)
 }
 
 // fill fills the fields that are not set by the user with default values when possible,

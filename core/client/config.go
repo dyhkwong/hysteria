@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/apernet/hysteria/core/v2/errors"
-	"github.com/apernet/hysteria/core/v2/internal/congestion"
-	"github.com/apernet/hysteria/core/v2/internal/pmtud"
+	"github.com/apernet/hysteria/core/v2/international/congestion"
+	"github.com/apernet/hysteria/core/v2/international/pmtud"
 )
 
 const (

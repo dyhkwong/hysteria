@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/apernet/hysteria/extras/v2/utils"
+	"github.com/exclavenetwork/hysteria/extras/v2/utils"
 )
 
 type InvalidPortError struct {

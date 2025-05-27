@@ -9,11 +9,11 @@ import (
 	"net/url"
 	"time"
 
-	coreErrs "github.com/apernet/hysteria/core/v2/errors"
-	"github.com/apernet/hysteria/core/v2/international/congestion"
-	"github.com/apernet/hysteria/core/v2/international/pmtud"
-	"github.com/apernet/hysteria/core/v2/international/protocol"
-	"github.com/apernet/hysteria/core/v2/international/utils"
+	coreErrs "github.com/exclavenetwork/hysteria/core/v2/errors"
+	"github.com/exclavenetwork/hysteria/core/v2/international/congestion"
+	"github.com/exclavenetwork/hysteria/core/v2/international/pmtud"
+	"github.com/exclavenetwork/hysteria/core/v2/international/protocol"
+	"github.com/exclavenetwork/hysteria/core/v2/international/utils"
 
 	"github.com/apernet/quic-go"
 	"github.com/apernet/quic-go/http3"

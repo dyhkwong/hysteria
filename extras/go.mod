@@ -1,4 +1,4 @@
-module github.com/apernet/hysteria/extras/v2
+module github.com/exclavenetwork/hysteria/extras/v2
 
 go 1.25.0
 

@@ -5,9 +5,9 @@ import (
 	"net"
 	"time"
 
-	"github.com/apernet/hysteria/core/v2/errors"
-	"github.com/apernet/hysteria/core/v2/international/congestion"
 	"github.com/apernet/quic-go"
+	"github.com/exclavenetwork/hysteria/core/v2/errors"
+	"github.com/exclavenetwork/hysteria/core/v2/international/congestion"
 )
 
 const (

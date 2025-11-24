@@ -45,6 +45,17 @@ type udpHopPacketConn struct {
 	bufPool sync.Pool
 }
 
+type udpLikePacketConn interface {
+	net.PacketConn
+	SyscallConn() (syscall.RawConn, error)
+	SetReadBuffer(int) error
+	SetWriteBuffer(int) error
+}
+
+type udpHopPacketConnUDP struct {
+	*udpHopPacketConn
+}
+
 type udpPacket struct {
 	Buf  []byte
 	N    int
@@ -87,6 +98,14 @@ func NewUDPHopPacketConn(addr *UDPHopAddr, hopInterval HopIntervalConfig, listen
 				return make([]byte, udpBufferSize)
 			},
 		},
+	}
+	if _, ok := curConn.(udpLikePacketConn); ok {
+		hConnUDP := &udpHopPacketConnUDP{
+			udpHopPacketConn: hConn,
+		}
+		go hConnUDP.recvLoop(curConn)
+		go hConnUDP.hopLoop()
+		return hConnUDP, nil
 	}
 	go hConn.recvLoop(curConn)
 	go hConn.hopLoop()
@@ -292,7 +311,7 @@ func (u *udpHopPacketConn) SetWriteDeadline(t time.Time) error {
 
 // UDP-specific methods below
 
-func (u *udpHopPacketConn) SetReadBuffer(bytes int) error {
+func (u *udpHopPacketConnUDP) SetReadBuffer(bytes int) error {
 	u.connMutex.Lock()
 	defer u.connMutex.Unlock()
 	u.readBufferSize = bytes
@@ -302,7 +321,7 @@ func (u *udpHopPacketConn) SetReadBuffer(bytes int) error {
 	return trySetReadBuffer(u.currentConn, bytes)
 }
 
-func (u *udpHopPacketConn) SetWriteBuffer(bytes int) error {
+func (u *udpHopPacketConnUDP) SetWriteBuffer(bytes int) error {
 	u.connMutex.Lock()
 	defer u.connMutex.Unlock()
 	u.writeBufferSize = bytes
@@ -312,7 +331,7 @@ func (u *udpHopPacketConn) SetWriteBuffer(bytes int) error {
 	return trySetWriteBuffer(u.currentConn, bytes)
 }
 
-func (u *udpHopPacketConn) SyscallConn() (syscall.RawConn, error) {
+func (u *udpHopPacketConnUDP) SyscallConn() (syscall.RawConn, error) {
 	u.connMutex.RLock()
 	defer u.connMutex.RUnlock()
 	sc, ok := u.currentConn.(syscall.Conn)

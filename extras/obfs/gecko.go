@@ -81,7 +81,12 @@ type geckoPacketConn struct {
 	closeOnce sync.Once
 }
 
-func newGeckoPacketConn(inner net.PacketConn, minPkt, maxPkt int) *geckoPacketConn {
+type geckoPacketConnUDP struct {
+	*geckoPacketConn
+	udpConn udpLikePacketConn
+}
+
+func newGeckoPacketConn(inner net.PacketConn, minPkt, maxPkt int) net.PacketConn {
 	g := &geckoPacketConn{
 		inner:      inner,
 		minPkt:     minPkt,
@@ -90,6 +95,14 @@ func newGeckoPacketConn(inner net.PacketConn, minPkt, maxPkt int) *geckoPacketCo
 		reassembly: make(map[reassemblyKey]*reassemblyEntry),
 		perSource:  make(map[string]int),
 		closeCh:    make(chan struct{}),
+	}
+	if udpConn, ok := inner.(udpLikePacketConn); ok {
+		uc := &geckoPacketConnUDP{
+			geckoPacketConn: g,
+			udpConn:         udpConn,
+		}
+		go uc.gcLoop()
+		return uc
 	}
 	go g.gcLoop()
 	return g
@@ -319,23 +332,14 @@ func (g *geckoPacketConn) SetWriteDeadline(t time.Time) error {
 
 // --- UDP-flavor passthrough ---
 
-func (g *geckoPacketConn) SyscallConn() (syscall.RawConn, error) {
-	if u, ok := g.inner.(udpLikePacketConn); ok {
-		return u.SyscallConn()
-	}
-	return nil, errors.ErrUnsupported
+func (g *geckoPacketConnUDP) SyscallConn() (syscall.RawConn, error) {
+	return g.udpConn.SyscallConn()
 }
 
-func (g *geckoPacketConn) SetReadBuffer(bytes int) error {
-	if u, ok := g.inner.(udpLikePacketConn); ok {
-		return u.SetReadBuffer(bytes)
-	}
-	return errors.ErrUnsupported
+func (g *geckoPacketConnUDP) SetReadBuffer(bytes int) error {
+	return g.udpConn.SetReadBuffer(bytes)
 }
 
-func (g *geckoPacketConn) SetWriteBuffer(bytes int) error {
-	if u, ok := g.inner.(udpLikePacketConn); ok {
-		return u.SetWriteBuffer(bytes)
-	}
-	return errors.ErrUnsupported
+func (g *geckoPacketConnUDP) SetWriteBuffer(bytes int) error {
+	return g.udpConn.SetWriteBuffer(bytes)
 }

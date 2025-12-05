@@ -63,7 +63,7 @@ type udpPacket struct {
 	Err  error
 }
 
-type ListenUDPFunc = func() (net.PacketConn, error)
+type ListenUDPFunc = func(net.Addr) (net.PacketConn, error)
 
 func NewUDPHopPacketConn(addr *UDPHopAddr, hopInterval HopIntervalConfig, listenUDPFunc ListenUDPFunc) (net.PacketConn, error) {
 	hopInterval, err := hopInterval.normalized()
@@ -71,7 +71,7 @@ func NewUDPHopPacketConn(addr *UDPHopAddr, hopInterval HopIntervalConfig, listen
 		return nil, err
 	}
 	if listenUDPFunc == nil {
-		listenUDPFunc = func() (net.PacketConn, error) {
+		listenUDPFunc = func(_ net.Addr) (net.PacketConn, error) {
 			return net.ListenUDP("udp", nil)
 		}
 	}
@@ -79,7 +79,8 @@ func NewUDPHopPacketConn(addr *UDPHopAddr, hopInterval HopIntervalConfig, listen
 	if err != nil {
 		return nil, err
 	}
-	curConn, err := listenUDPFunc()
+	addrIndex := rand.Intn(len(addrs))
+	curConn, err := listenUDPFunc(addrs[addrIndex])
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +91,7 @@ func NewUDPHopPacketConn(addr *UDPHopAddr, hopInterval HopIntervalConfig, listen
 		ListenUDPFunc: listenUDPFunc,
 		prevConn:      nil,
 		currentConn:   curConn,
-		addrIndex:     rand.Intn(len(addrs)),
+		addrIndex:     addrIndex,
 		recvQueue:     make(chan *udpPacket, packetQueueSize),
 		closeChan:     make(chan struct{}),
 		bufPool: sync.Pool{
@@ -182,7 +183,9 @@ func (u *udpHopPacketConn) hop() {
 	if u.closed {
 		return
 	}
-	newConn, err := u.ListenUDPFunc()
+	// Update addrIndex to a new random value
+	u.addrIndex = rand.Intn(len(u.Addrs))
+	newConn, err := u.ListenUDPFunc(u.Addrs[u.addrIndex])
 	if err != nil {
 		// Could be temporary, just skip this hop
 		return
@@ -217,8 +220,6 @@ func (u *udpHopPacketConn) hop() {
 		_ = u.currentConn.SetWriteDeadline(u.writeDeadline)
 	}
 	go u.recvLoop(newConn)
-	// Update addrIndex to a new random value
-	u.addrIndex = rand.Intn(len(u.Addrs))
 }
 
 func (u *udpHopPacketConn) ReadFrom(b []byte) (n int, addr net.Addr, err error) {

@@ -112,7 +112,7 @@ func (c *clientImpl) connect() (*HandshakeInfo, error) {
 	quicConfig.DisablePathMTUDiscovery = quicConfig.DisablePathMTUDiscovery || pmtud.DisablePathMTUDiscovery
 	quicConfig.EnableDatagrams = true
 	quicConfig.MaxDatagramFrameSize = protocol.MaxDatagramFrameSize
-	quicConfig.OmitMaxDatagramFrameSize = true
+	// quicConfig.OmitMaxDatagramFrameSize = true
 	quicConfig.DisablePathManager = true
 	tr := &quic.Transport{Conn: pktConn}
 	// Prepare RoundTripper

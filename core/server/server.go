@@ -75,7 +75,7 @@ func NewServer(config *Config) (Server, error) {
 	tr := &quic.Transport{Conn: config.Conn}
 	listener, err := tr.Listen(http3.ConfigureTLSConfig(config.TLSConfig), quicConfig)
 	if err != nil {
-		err = goerrors.Join(err, tr.Close(), config.Conn.Close())
+		err = goerrors.Join(err, config.Conn.Close(), tr.Close())
 		return nil, err
 	}
 	return &serverImpl{
@@ -102,7 +102,7 @@ func (s *serverImpl) Serve() error {
 }
 
 func (s *serverImpl) Close() error {
-	err := goerrors.Join(s.listener.Close(), s.tr.Close(), s.config.Conn.Close())
+	err := goerrors.Join(s.listener.Close(), s.config.Conn.Close(), s.tr.Close())
 	return err
 }
 
